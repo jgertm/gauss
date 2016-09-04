@@ -72,3 +72,5 @@ instance Atom Int
 instance Atom Integer
 instance Atom Double
 
+type Tuple a = (a,a)
+type Triple a = (a,a,a)
