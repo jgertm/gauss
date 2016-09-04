@@ -72,14 +72,3 @@ instance Atom Int
 instance Atom Integer
 instance Atom Double
 
-exOne :: Con Integer
-exOne = Con 3
-
-exTwo :: App Multiplication (Con Integer,Con Integer) Integer
-exTwo = App Multiplication (exOne,exOne)
-
-exThree :: Con Double
-exThree = Con 3.2
-
-exFour :: App Multiplication (Con Double,Con Double) Double
-exFour = App Multiplication (exThree,exThree)
