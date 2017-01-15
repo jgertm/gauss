@@ -8,4 +8,4 @@ nix:
   enable: true
   pure: true
   path: [nixpkgs=/home/tjger/work/hacking/nixpkgs]
-  packages: [ncurses, git, cabal-install, zlibStatic]
+  packages: [ncurses, git, cabal-install, zlibStatic, binutils]
