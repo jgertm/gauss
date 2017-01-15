@@ -18,6 +18,13 @@ data Expression = Symbol Identifier
                 | Application Operation [Expression]
                 deriving (Show)
 
+mkLit :: Typeable a => a -> Expression
+mkLit n = Literal $ toDyn n
+mkSym :: Identifier -> Expression
+mkSym s = Symbol s
+mkApp :: Operation -> Expression -> Expression -> Expression
+mkApp op exL exR = Application op [exL, exR]
+
 evaluate :: (Typeable a)
          => Expression -> Maybe a
 evaluate (Symbol _)           = Nothing
