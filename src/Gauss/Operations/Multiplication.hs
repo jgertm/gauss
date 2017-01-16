@@ -7,7 +7,7 @@ import qualified Gauss.Types.Int        as Int
 import qualified Gauss.Types.Integer    as Integer
 
 
-data Multiplication = Multiplication deriving (Show, Eq, Ord)
+data Multiplication = Multiplication deriving (Show, Eq)
 
 instance Operation Multiplication where
   type Arity Multiplication = N2

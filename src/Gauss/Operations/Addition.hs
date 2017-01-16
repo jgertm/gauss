@@ -7,7 +7,7 @@ import qualified Gauss.Types.Int        as Int
 import qualified Gauss.Types.Integer    as Integer
 
 
-data Addition = Addition deriving (Show, Eq, Ord)
+data Addition = Addition deriving (Show, Eq)
 
 instance Operation Addition where
   type Arity Addition = N2
