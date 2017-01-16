@@ -19,8 +19,10 @@ library
   exposed-modules:     Gauss
   other-modules:       Gauss.Expressions
                      , Gauss.Operations
+                     , Gauss.Operations.Class
                      , Gauss.Operations.Addition
                      , Gauss.Operations.Multiplication
+                     , Gauss.Reduction
                      , Gauss.Types
                      , Gauss.Types.Int
                      , Gauss.Types.Integer
@@ -28,6 +30,7 @@ library
                      , bifunctors
                      , classy-prelude
                      , integer-gmp
+                     , fixed-vector
   default-language:    Haskell2010
 
 executable gauss-exe

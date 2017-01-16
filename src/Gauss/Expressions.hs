@@ -1,47 +1,40 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Gauss.Expressions where
 
 import           Gauss.Operations
-import           Gauss.Types
 
-import           ClassyPrelude
-
-import           Data.Dynamic
+import           Data.Monoid
+import qualified Data.Vector.Fixed       as V
+import           Data.Vector.Fixed.Boxed
 
 
 type Identifier = Int
 
-data Expression = Symbol Identifier
-                | Literal Dynamic
-                | Application Operation [Expression]
-                deriving (Show)
+data Expression e where
+  Literal :: e
+          -> Expression e
 
-mkLit :: Typeable a => a -> Expression
-mkLit n = Literal $ toDyn n
-mkSym :: Identifier -> Expression
-mkSym s = Symbol s
-mkApp :: Operation -> Expression -> Expression -> Expression
-mkApp op exL exR = Application op [exL, exR]
+  Symbol  :: String
+          -> Identifier
+          -> Expression e
 
-evaluate :: (Typeable a)
-         => Expression -> Maybe a
-evaluate (Symbol _)           = Nothing
-evaluate (Literal l)          = fromDynamic l
-evaluate (Application op exs) = do
-  guard $ and [ all isLiteral exs
-              , length exs > 0 ]
+  Application :: ( Operation op, Eval op
+                 , Arity op ~ n, V.Arity n
+                 , Domain op e)
+              => op
+              -> Vec n (Expression e)
+              -> Expression e
 
-  domainType :: TypeRep <- fmap dynTypeRep $ fromLiteral =<< headMay exs
-  fn <- lookup domainType =<< lookup op operationsTypes
-  dyns <- fromNullable =<< (sequenceA . fmap fromLiteral $ exs)
-  fromDynamic $ ofoldl' dynApp fn dyns
+instance (Show e) => Show (Expression e) where
+  show (Literal l)         = "(L " <> show l <> ")"
+  show (Symbol s i)        = "(S " <> s <> "_" <> show i <> ")"
+  show (Application op ev) = "(A " <> show op <> " " <> (foldMap show ev) <> ")"
 
-isLiteral :: Expression -> Bool
-isLiteral (Literal _) = True
-isLiteral _           = False
+plus :: forall t. Additive t => t -> t -> Expression t
+plus x y = Application Addition $ V.mk2 (Literal x) (Literal y)
 
-fromLiteral :: Expression -> Maybe Dynamic
-fromLiteral (Literal l) = Just l
-fromLiteral _           = Nothing
+times :: forall t. Multiplicative t => t -> t -> Expression t
+times x y = Application Multiplication $ V.mk2 (Literal x) (Literal y)

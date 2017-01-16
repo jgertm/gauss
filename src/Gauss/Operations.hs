@@ -1,13 +1,11 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+module Gauss.Operations
+       ( Operation(..), Eval(..)
 
-module Gauss.Operations where
+       , Addition(..)       , Additive(..)
+       , Multiplication(..) , Multiplicative(..)
+       ) where
 
-import           ClassyPrelude
+import           Gauss.Operations.Class
 
-import           Data.Dynamic
-
-data Operation = Addition
-               | Multiplication
-               deriving (Show, Eq, Ord)
-
-type OperationMap = Map Operation Dynamic
+import           Gauss.Operations.Addition
+import           Gauss.Operations.Multiplication
