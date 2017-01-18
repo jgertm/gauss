@@ -1,4 +1,6 @@
-{-# LANGUAGE TypeFamilies    #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE TypeFamilies           #-}
 
 module Gauss.Operations.Multiplication where
 
@@ -13,13 +15,13 @@ instance Operation Multiplication where
   type Arity Multiplication = N2
   type Domain Multiplication = Multiplicative
 
-class Multiplicative n where
-  multiply :: n -> n -> n
+class (Show domain) => Multiplicative domain codomain | domain -> codomain where
+  multiply :: domain -> domain -> codomain
 
-instance Multiplicative Int where
+instance Multiplicative Int Int where
   multiply = Int.multiply
 
-instance Multiplicative Integer where
+instance Multiplicative Integer Integer where
   multiply = Integer.multiply
 
 instance Eval Multiplication where

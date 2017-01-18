@@ -13,28 +13,29 @@ import           Data.Vector.Fixed.Boxed
 
 type Identifier = Int
 
-data Expression e where
-  Literal :: e
-          -> Expression e
+data Expression dom where
+  Literal :: dom
+          -> Expression dom
 
   Symbol  :: String
           -> Identifier
-          -> Expression e
+          -> Expression dom
 
   Application :: ( Operation op, Eval op
                  , Arity op ~ n, V.Arity n
-                 , Domain op e)
+                 , Domain op dom cod
+                 , Show dom)
               => op
-              -> Vec n (Expression e)
-              -> Expression e
+              -> Vec n (Expression dom)
+              -> Expression cod
 
-instance (Show e) => Show (Expression e) where
+instance (Show dom) => Show (Expression dom) where
   show (Literal l)         = "(L " <> show l <> ")"
   show (Symbol s i)        = "(S " <> s <> "_" <> show i <> ")"
   show (Application op ev) = "(A " <> show op <> " " <> (foldMap show ev) <> ")"
 
-plus :: forall t. Additive t => t -> t -> Expression t
+plus :: (Additive dom cod) => dom -> dom -> Expression cod
 plus x y = Application Addition $ V.mk2 (Literal x) (Literal y)
 
-times :: forall t. Multiplicative t => t -> t -> Expression t
+times :: (Multiplicative dom cod) => dom -> dom -> Expression cod
 times x y = Application Multiplication $ V.mk2 (Literal x) (Literal y)

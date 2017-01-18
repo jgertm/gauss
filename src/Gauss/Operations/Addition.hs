@@ -1,4 +1,6 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE TypeFamilies           #-}
 
 module Gauss.Operations.Addition where
 
@@ -13,13 +15,13 @@ instance Operation Addition where
   type Arity Addition = N2
   type Domain Addition = Additive
 
-class Additive n where
-  add :: n -> n -> n
+class (Show domain) => Additive domain codomain | domain -> codomain where
+  add :: domain -> domain -> codomain
 
-instance Additive Int where
+instance Additive Int Int where
   add = Int.add
 
-instance Additive Integer where
+instance Additive Integer Integer where
   add = Integer.add
 
 instance Eval Addition where
