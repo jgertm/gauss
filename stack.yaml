@@ -1,4 +1,4 @@
-resolver: lts-7.14
+resolver: lts-8.2
 packages:
 - '.'
 extra-deps: []
@@ -7,5 +7,5 @@ extra-package-dbs: []
 nix:
   enable: true
   pure: true
-  path: [nixpkgs=/home/tjger/work/hacking/nixpkgs]
-  packages: [ncurses, git, cabal-install, zlibStatic, binutils]
+  path: [nixpkgs=/home/tjger/.dotfiles/nixos/nixpkgs]
+  packages: [ncurses, git, cabal-install, zlibStatic, binutils, gmp]

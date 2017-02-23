@@ -16,6 +16,13 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   ghc-options:         -Wall
+  default-extensions:  NoImplicitPrelude
+                     , TypeFamilies
+                     , MultiParamTypeClasses
+                     , ScopedTypeVariables
+                     , RankNTypes
+                     , FlexibleInstances
+                     , GADTs
   exposed-modules:     Gauss
   other-modules:       Gauss.Expressions
                      , Gauss.Operations
@@ -30,7 +37,6 @@ library
                      , bifunctors
                      , classy-prelude
                      , integer-gmp
-                     , fixed-vector
   default-language:    Haskell2010
 
 executable gauss-exe

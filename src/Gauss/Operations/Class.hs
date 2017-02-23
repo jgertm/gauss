@@ -1,18 +1,29 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds        #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
 
 module Gauss.Operations.Class
        ( module Gauss.Operations.Class
-       , module Data.Vector.Fixed
        ) where
 
-import           Data.Vector.Fixed hiding (Arity, foldMap)
-import           Data.Vector.Fixed.Boxed
-import           GHC.Exts                (Constraint)
+import           ClassyPrelude
 
-class (Show op) => Operation op where
-  type Arity op    :: *
-  type Domain op   :: * -> * -> Constraint
+import           GHC.Exts       (Constraint)
+
+
+type family Lift e args = liftedArgs
+                        | liftedArgs -> args where
+  Lift e (a,b)   = (e a, e b)
+  Lift e (a,b,c) = (e a, e b, e c)
+
+type family Lower e args where
+  Lower e (e a, e b)      = (a, b)
+  Lower e (e a, e b, e c) = (a, b, c)
+
+class Operation op where
+  type Domain op :: * -> * -> Constraint
+  name :: op -> String
 
 class (Operation op) => Eval op where
-  evaluate :: (Arity op ~ n, Domain op dom cod)
-           => pr op -> Vec n dom -> cod
+  evaluate :: (Domain op args codom)
+           => pr op -> args -> codom

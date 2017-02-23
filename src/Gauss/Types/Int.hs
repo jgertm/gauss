@@ -1,5 +1,7 @@
 module Gauss.Types.Int where
 
+import           ClassyPrelude
+
 import           Data.Dynamic
 
 

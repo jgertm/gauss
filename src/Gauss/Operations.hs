@@ -1,5 +1,5 @@
 module Gauss.Operations
-       ( Operation(..), Eval(..)
+       ( Operation(..), Lift, Lower
 
        , Addition(..)       , Additive(..)
        , Multiplication(..) , Multiplicative(..)
