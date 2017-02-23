@@ -16,9 +16,27 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   ghc-options:         -Wall
-  exposed-modules:     Lib
+  default-extensions:  NoImplicitPrelude
+                     , TypeFamilies
+                     , MultiParamTypeClasses
+                     , ScopedTypeVariables
+                     , RankNTypes
+                     , FlexibleInstances
+                     , GADTs
+  exposed-modules:     Gauss
+  other-modules:       Gauss.Expressions
+                     , Gauss.Operations
+                     , Gauss.Operations.Class
+                     , Gauss.Operations.Addition
+                     , Gauss.Operations.Multiplication
+                     , Gauss.Reduction
+                     , Gauss.Types
+                     , Gauss.Types.Int
+                     , Gauss.Types.Integer
   build-depends:       base >= 4.7 && < 5
+                     , bifunctors
                      , classy-prelude
+                     , integer-gmp
   default-language:    Haskell2010
 
 executable gauss-exe
@@ -35,6 +53,8 @@ test-suite gauss-test
   main-is:             Spec.hs
   build-depends:       base
                      , gauss
+                     , tasty
+                     , tasty-smallcheck
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
