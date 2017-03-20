@@ -1,38 +1,63 @@
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 module Gauss.Expressions where
 
 import           Gauss.Operations
 
 import           ClassyPrelude
 
+import           GHC.Exts         (Constraint)
+
 
 type Identifier = Int
 
 data Expression dom where
-  Literal :: (Show dom)
-          => dom
+  Literal :: dom
           -> Expression dom
 
-  Symbol  :: String
-          -> Identifier
-          -> Expression dom
+  Symbol :: String
+         -> Identifier
+         -> Expression dom
 
-  Application :: ( Operation op
-                 , Domain op args cod
-                 -- , Lower Expression liftedArgs ~ args
+  Application :: ( Operation op args
+                 , Codomain op args ~ dom
+                 , Lift Expression args ~ liftedArgs
+                 , Codomain op liftedArgs ~ Expression dom, Operation op liftedArgs
+                 , Show liftedArgs, Show dom
                  )
               => op
-              -> Lift Expression args
-              -> Expression cod
+              -> liftedArgs
+              -> Expression dom
 
--- instance (Show dom) => Show (Expression dom) where
---   show (Literal l)         = "(L " <> show l <> ")"
---   show (Symbol s i)        = "(S " <> s <> "_" <> show i <> ")"
---   show (Application op ev) = "(A " <> name op <> " " <> (foldMap show ev) <> ")"
+type EI = Expression Integer
 
--- plus :: (Additive dom cod) => dom -> dom -> Expression cod
--- plus x y = Application Addition $ ((Literal x), (Literal y))
+type family con :<$> tup = (res :: Constraint) where
+  con :<$> (a,b)   = (con a, con b)
+  con :<$> (a,b,c) = (con a, con b, con c)
 
--- times :: (Multiplicative dom cod) => dom -> dom -> Expression cod
--- times x y = Application Multiplication $ ((Literal x), (Literal y))
+instance (Operation op (a,b))
+       => Operation op (Expression a, Expression b) where
+  type Codomain op (Expression a, Expression b) = Expression (Codomain op (a,b))
+  evaluate op (Literal a, Literal b) = Literal $ evaluate op (a,b)
+  evaluate _ _ = undefined
 
-foo = Application Addition ((Literal (1::Int)),(Literal (2::Int)))
+instance (Show dom)
+       => Show (Expression dom) where
+  show (Literal l)          = "(L " <> show l <> ")"
+  show (Symbol s i)         = "(S " <> s <> "_" <> show i <> ")"
+  show (Application op exs) = "(A " <> show op <> show exs
+
+instance (Num n, Show n, Ring n)
+       => Num (Expression n) where
+  a + b = Application Addition (a,b)
+  a * b = Application Multiplication (a,b)
+  fromInteger i = Literal $ fromInteger i
+
+foo :: EI
+foo = 2 + 3
+
+reduce :: Expression t -> Maybe t
+reduce (Application op exs) = let (Literal l) = evaluate op exs
+                               in Just l
+reduce _ = Nothing

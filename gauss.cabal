@@ -18,6 +18,7 @@ library
   ghc-options:         -Wall
   default-extensions:  NoImplicitPrelude
                      , TypeFamilies
+                     , TypeOperators
                      , MultiParamTypeClasses
                      , ScopedTypeVariables
                      , RankNTypes

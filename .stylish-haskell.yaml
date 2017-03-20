@@ -173,4 +173,5 @@ language_extensions:
   - ScopedTypeVariables
   - RankNTypes
   - FlexibleInstances
+  - FlexibleContexts
   - GADTs

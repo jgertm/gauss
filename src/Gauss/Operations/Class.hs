@@ -8,22 +8,12 @@ module Gauss.Operations.Class
 
 import           ClassyPrelude
 
-import           GHC.Exts       (Constraint)
 
-
-type family Lift e args = liftedArgs
-                        | liftedArgs -> args where
+type family Lift e a where
   Lift e (a,b)   = (e a, e b)
   Lift e (a,b,c) = (e a, e b, e c)
 
-type family Lower e args where
-  Lower e (e a, e b)      = (a, b)
-  Lower e (e a, e b, e c) = (a, b, c)
+class (Show op) => Operation op args where
+  type family Codomain op args = cod | cod -> args
 
-class Operation op where
-  type Domain op :: * -> * -> Constraint
-  name :: op -> String
-
-class (Operation op) => Eval op where
-  evaluate :: (Domain op args codom)
-           => pr op -> args -> codom
+  evaluate :: op -> args -> Codomain op args
