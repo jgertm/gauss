@@ -1,11 +1,11 @@
-resolver: lts-8.5
+resolver: nightly-2017-07-31
+
 packages:
 - '.'
-extra-deps: []
+
+extra-deps:
+- base-noprelude-4.10.0.0
+
 flags: {}
+
 extra-package-dbs: []
-nix:
-  enable: true
-  pure: true
-  path: [nixpkgs=/home/tjger/.dotfiles/nixos/nixpkgs]
-  packages: [ncurses, git, cabal-install, zlibStatic, binutils, gmp]
