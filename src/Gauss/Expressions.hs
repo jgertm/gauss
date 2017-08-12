@@ -1,67 +1,15 @@
-{-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE UndecidableInstances #-}
-
 module Gauss.Expressions where
 
+import           Gauss.Expressions.Input     as I
+import           Gauss.Expressions.Reduction as R
 import           Gauss.Operations
 
 import           ClassyPrelude
 
-import           GHC.Exts         (Constraint)
+import           Data.Dynamic
 
 
-data Expression dom where
-  Literal :: dom
-          -> Expression dom
-
-  Symbol :: String
-         -> Expression dom
-
-  Application :: ( Operation op args
-                 , Codomain op args ~ dom
-                 , Lift Expression args ~ liftedArgs
-                 , Codomain op liftedArgs ~ Expression dom, Operation op liftedArgs
-                 , Show liftedArgs, Show dom
-                 )
-              => op
-              -> liftedArgs
-              -> Expression dom
-
-type EI = Expression Integer
-
-type family con :<$> tup = (res :: Constraint) where
-  con :<$> (a,b)   = (con a, con b)
-  con :<$> (a,b,c) = (con a, con b, con c)
-
-instance (Operation op (a,b))
-       => Operation op (Expression a, Expression b) where
-  type Codomain op (Expression a, Expression b) = Expression (Codomain op (a,b))
-  evaluate op (Literal a, Literal b) = Literal $ evaluate op (a,b)
-  evaluate _ _                       = undefined
-
-instance (Show dom)
-       => Show (Expression dom) where
-  show (Literal l)          = "(L " <> show l <> ")"
-  show (Symbol s)           = "(S " <> s <> ")"
-  show (Application op exs) = "(A " <> show op <> show exs
-
-instance (Num n, Show n, Ring n)
-       => Num (Expression n) where
-  a + b = Application Addition (a,b)
-  a * b = Application Multiplication (a,b)
-  fromInteger i = Literal $ fromInteger i
-
-instance IsString (Expression n) where
-  fromString s = Symbol s
-
-foo :: EI
-foo = 2 + 3
-
-bar :: EI
-bar = 2 + "x"
-
-reduce :: Expression t -> Maybe t
-reduce (Application op exs) = let (Literal l) = evaluate op exs
-                               in Just l
-reduce _ = Nothing
+abstract :: I.Expression t -> R.Expression
+abstract (I.Literal l)           = R.Literal $ toDyn l
+abstract (I.Symbol s)            = R.Symbol s
+abstract (I.Application op args) = R.Application op $ I.cata abstract args
