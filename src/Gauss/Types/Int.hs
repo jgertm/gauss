@@ -1,8 +1,12 @@
 module Gauss.Types.Int where
 
-import           ClassyPrelude
+import           Data.Ratio ((%))
 
 
-add, multiply :: Int -> Int -> Int
+add, multiply, subtract :: Int -> Int -> Int
 add      = (+)
 multiply = (*)
+subtract = (-)
+
+divide :: Int -> Int -> Ratio Int
+divide = (%)

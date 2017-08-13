@@ -1,59 +1,47 @@
-{-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE OverloadedLists      #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# OPTIONS_GHC -Wno-missing-methods #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Gauss.Expressions.Input where
 
 import           Gauss.Operations
 
-import           GHC.Generics
 
--- import           GHC.Exts         (Constraint)
+data Expression op args dom =
+    Literal dom
+  | Symbol String
+  | Application op args
+  deriving (Generic)
 
 
-data Expression dom where
-  Literal :: (Typeable dom)
-          => dom
-          -> Expression dom
+instance (Show op, Show args, Show dom)
+       => Show (Expression op args dom) where
+  show (Literal l)          = printf "[Lit %s]" $ show l
+  show (Symbol s)           = printf "[Sym %s]" s
+  show (Application op exs) = printf "[Apl %s %s]" (show op) (show exs)
 
-  Symbol :: (Typeable dom)
-         => String
-         -> Expression dom
-
-  Application :: ( Operation op args
-                 , Codomain op args ~ dom
-                 , Lift Expression args ~ liftedArgs
-                 , Codomain op liftedArgs ~ Expression dom --, Operation op liftedArgs
-                 , Show liftedArgs, Show dom, Typeable dom
-                 )
-              => op
-              -> liftedArgs
-              -> Expression dom
-
-instance Generic (Expression dom) where
-
-type EI = Expression Integer
-
-instance (Operation op (a,b))
-       => Operation op (Expression a, Expression b) where
-  type Codomain op (Expression a, Expression b) = Expression (Codomain op (a,b))
-  -- evaluate op (Literal a, Literal b) = Literal $ evaluate op (a,b)
-  evaluate _  _                      = undefined
-
-instance (Show dom)
-       => Show (Expression dom) where
-  show (Literal l)          = "(L " <> show l <> ")"
-  show (Symbol s)           = "(S " <> s <> ")"
-  show (Application op exs) = "(A " <> show op <> show exs
-
-instance (Num n, Show n, Ring n, Typeable n)
-       => Num (Expression n) where
-  a + b = Application Addition (a,b)
-  a * b = Application Multiplication (a,b)
-  fromInteger i = Literal $ fromInteger i
-
-instance (Typeable n)
-       => IsString (Expression n) where
+instance IsString (Expression op args dom) where
   fromString s = Symbol s
+
+
+plus :: ((Expression lop largs ldom, Expression rop rargs rdom) ~ args, Codomain Addition (ldom,rdom) ~ dom)
+     => Expression lop      largs ldom
+     -> Expression rop      rargs rdom
+     -> Expression Addition  args  dom
+plus a b = Application Addition (a,b)
+
+times :: ((Expression lop largs ldom, Expression rop rargs rdom) ~ args, Codomain Multiplication (ldom,rdom) ~ dom)
+      => Expression lop            largs ldom
+      -> Expression rop            rargs rdom
+      -> Expression Multiplication  args  dom
+times a b = Application Multiplication (a,b)
+
+minus :: ((Expression lop largs ldom, Expression rop rargs rdom) ~ args, Codomain Subtraction (ldom,rdom) ~ dom)
+      => Expression lop         largs ldom
+      -> Expression rop         rargs rdom
+      -> Expression Subtraction  args  dom
+minus a b = Application Subtraction (a,b)
+
+over :: ((Expression lop largs ldom, Expression rop rargs rdom) ~ args, Codomain Division (ldom,rdom) ~ dom)
+     => Expression lop      largs ldom
+     -> Expression rop      rargs rdom
+     -> Expression Division  args  dom
+over a b = Application Division (a,b)

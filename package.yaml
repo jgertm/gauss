@@ -13,11 +13,13 @@ ghc-options:
 - -fllvm
 default-extensions:
 - ExtendedDefaultRules
+- FlexibleContexts
 - FlexibleInstances
 - GADTs
 - LambdaCase
 - MultiParamTypeClasses
 - OverloadedStrings
+- PartialTypeSignatures
 - RankNTypes
 - ScopedTypeVariables
 - TypeFamilies
@@ -34,8 +36,8 @@ library:
   - Prelude
   dependencies:
   - bifunctors
+  - ghc-prim
   - integer-gmp
-  - uniplate
 
 executables:
   gauss-exe:
