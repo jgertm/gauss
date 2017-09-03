@@ -1,6 +1,6 @@
 module Gauss.Types.Integer where
 
-import           Data.Ratio ((%))
+import           Data.Ratio  (Ratio, (%))
 import           GHC.Integer
 
 

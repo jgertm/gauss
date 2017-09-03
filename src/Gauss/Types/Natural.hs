@@ -1,8 +1,12 @@
-module Gauss.Types.Natural where
+module Gauss.Types.Natural
+       ( module Gauss.Types.Natural
+       , Natural
+       ) where
 
 import           Gauss.Types.Integer as Integer
 
-import           Data.Ratio ((%))
+import           Data.Ratio          (Ratio, (%))
+import           Numeric.Natural     (Natural)
 
 
 add, multiply :: Natural -> Natural -> Natural

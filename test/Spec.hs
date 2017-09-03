@@ -1,9 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-import Gauss
+import           Gauss
 
-import Test.Tasty
-import Test.Tasty.SmallCheck
+import           Test.Tasty
+import           Test.Tasty.SmallCheck
 
 
 main :: IO ()

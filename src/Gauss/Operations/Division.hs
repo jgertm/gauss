@@ -5,6 +5,9 @@ import qualified Gauss.Types.Int        as Int
 import qualified Gauss.Types.Integer    as Integer
 import qualified Gauss.Types.Natural    as Natural
 
+import           Data.Ratio             (Ratio)
+import           Numeric.Natural        (Natural)
+
 
 data Division = Division
               deriving (Show, Eq)

@@ -10,7 +10,7 @@ ghc-options:
 - -Wall
 - -fno-warn-type-defaults
 - -O2
-- -fllvm
+# - -fllvm
 default-extensions:
 - ExtendedDefaultRules
 - FlexibleContexts
@@ -22,22 +22,23 @@ default-extensions:
 - PartialTypeSignatures
 - RankNTypes
 - ScopedTypeVariables
+- StandaloneDeriving
 - TypeFamilies
 - TypeOperators
 dependencies:
+- jgrprld
 - base-noprelude
-- classy-prelude
 
 library:
   source-dirs: src
   other-modules:
   exposed-modules:
   - Gauss
-  - Prelude
   dependencies:
   - bifunctors
   - ghc-prim
   - integer-gmp
+  - generic-deriving
 
 executables:
   gauss-exe:

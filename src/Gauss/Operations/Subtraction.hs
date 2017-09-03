@@ -3,6 +3,7 @@ module Gauss.Operations.Subtraction where
 import           Gauss.Operations.Class
 import qualified Gauss.Types.Int        as Int
 import qualified Gauss.Types.Integer    as Integer
+import           Gauss.Types.Natural    (Natural)
 import qualified Gauss.Types.Natural    as Natural
 
 

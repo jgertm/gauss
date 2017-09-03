@@ -1,6 +1,6 @@
 module Gauss.Types.Int where
 
-import           Data.Ratio ((%))
+import           Data.Ratio (Ratio, (%))
 
 
 add, multiply, subtract :: Int -> Int -> Int

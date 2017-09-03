@@ -4,8 +4,9 @@
 
 module Gauss.Operations.Class where
 
+import           Gauss.Argument
 
-class ( Show op )
+class (Show op, Argument args)
      => Operation op args where
-  type family Codomain op args :: *
+  type Codomain op args :: *
   evaluate :: op -> args -> Codomain op args

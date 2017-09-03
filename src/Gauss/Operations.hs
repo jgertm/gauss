@@ -16,11 +16,11 @@ module Gauss.Operations
 
 import           Prelude                         hiding (Monoid)
 
-import           Gauss.Operations.Class
 import           Gauss.Operations.Addition
+import           Gauss.Operations.Class
+import           Gauss.Operations.Division
 import           Gauss.Operations.Multiplication
 import           Gauss.Operations.Subtraction
-import           Gauss.Operations.Division
 
 
 type Monoid (op :: *) (t :: *) = (Eq t, Operation op (t,t), Codomain op (t,t) ~ t)
