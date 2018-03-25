@@ -170,6 +170,7 @@ language_extensions:
   - NoImplicitPrelude
   - TypeFamilies
   - MultiParamTypeClasses
+  - NamedFieldPuns
   - ScopedTypeVariables
   - RankNTypes
   - FlexibleInstances
