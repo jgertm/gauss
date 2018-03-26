@@ -29,6 +29,7 @@ default-extensions:
 dependencies:
 - base
 - vector
+- universum
 
 library:
   source-dirs: src
@@ -39,7 +40,6 @@ library:
   - bifunctors
   - ghc-prim
   - integer-gmp
-  - generic-deriving
 
 executables:
   gauss-exe:
