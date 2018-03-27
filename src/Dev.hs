@@ -139,12 +139,23 @@ rules = [ doNothing
         , removeInverseApplication
         ]
 
--- quux = Application Multiplication [Constant 2.0,Application Multiplication [Constant 1.0,Application Inversion [Constant 2.0]]]
-
--- reduce :: Expression -> Expression
-reduce (Application op args) = catMaybes $ do
-  args' <- traverse reduce args
+reductions :: Expression -> [Expression]
+reductions (Application op args) = catMaybes $ do
+  args' <- traverse reductions args
   let expr = Application op args'
   rule <- rules
   pure $ rule expr
-reduce expr = [expr]
+reductions expr = [expr]
+
+nodes :: Expression -> [Expression]
+nodes c@(Constant _)         = [c]
+nodes v@(Variable _)         = [v]
+nodes a@(Application _ args) = a : concatMap nodes args
+
+score :: Expression -> Int
+score (Constant _)         = 1
+score (Variable _)         = 2
+score (Application _ args) = 5 + (sum . map score $ args)
+
+reduce :: Expression -> Expression
+reduce = minimumBy (compare `on` score) . reductions
