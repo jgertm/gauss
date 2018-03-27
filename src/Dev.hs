@@ -3,9 +3,11 @@
 
 module Dev where
 
-import           Universum   hiding (reduce)
+import           Universum   hiding (reduce, show)
 
 import           Data.Vector (Vector)
+import           Text.Printf
+import           Text.Show
 
 
 type Scalar = Double
@@ -15,16 +17,18 @@ newtype Tensor (dims :: [Int]) = Tensor (Vector Scalar)
 data Expression = Variable String
                 | Constant Scalar
                 | Application Operation [Expression]
-                deriving (Show, Eq)
+                deriving (Eq)
 
-op :: Expression -> Maybe Operation
-op (Application op _) = Just op
-op _                  = Nothing
-
-args :: Expression -> Maybe [Expression]
-args (Application _ args) = Just args
-args _                    = Nothing
-
+instance Show Expression where
+  show (Variable v) = v
+  show (Constant c) = show c
+  show (Application op args) =
+    let opSym = show op
+        inner = case operatorFixity op of
+          Prefix  -> opSym <> " " <> (intercalate " " $ map show args)
+          Infix   -> intercalate opSym $ map show args
+          Postfix -> (intercalate " " $ map show args) <> opSym
+     in printf "(%s)" inner
 
 instance Num Expression where
   x + y = Application Addition [x,y]
@@ -46,7 +50,27 @@ data Operation = Addition
                | Inversion
                | Exponentiation
                | Log
-               deriving (Show, Eq)
+               deriving (Eq)
+
+instance Show Operation where
+  show op = case op of
+              Addition       -> "+"
+              Multiplication -> " "
+              Negation       -> "−"
+              Inversion      -> "^(-1)"
+              Exponentiation -> "^"
+              Log            -> "log"
+
+data Fixity = Prefix
+            | Infix
+            | Postfix
+            deriving (Show, Eq)
+
+operatorFixity :: Operation -> Fixity
+operatorFixity op
+  | op `elem` [Addition, Multiplication, Exponentiation] = Infix
+  | op `elem` [Negation, Log] = Prefix
+  | op `elem` [Inversion] = Postfix
 
 isGroup :: Operation -> Bool
 isGroup op = op `elem` map operation groups
