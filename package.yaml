@@ -36,7 +36,6 @@ library:
   source-dirs: src
   other-modules:
   exposed-modules:
-  - Gauss
   - Dev
   dependencies:
   - bifunctors
