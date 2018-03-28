@@ -90,12 +90,6 @@ data Group = Group { operation :: Operation
                    , unit      :: Expression
                    }
 
-foo, baz, bar, quux, fuzz :: Expression
-foo = 1 + 0
-baz = (-(-1))
-bar = 1 + (-1)
-quux = 2 * (1/2)
-fuzz = 2 * (1 * (1/2))
 
 type RewriteRule = Expression -> Maybe Expression
 

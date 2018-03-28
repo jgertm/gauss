@@ -12,6 +12,7 @@ ghc-options:
 - -O2
 # - -fllvm
 default-extensions:
+- DeriveGeneric
 - ExtendedDefaultRules
 - FlexibleContexts
 - FlexibleInstances
@@ -36,6 +37,7 @@ library:
   other-modules:
   exposed-modules:
   - Gauss
+  - Dev
   dependencies:
   - bifunctors
   - ghc-prim
@@ -59,4 +61,5 @@ tests:
     dependencies:
     - gauss
     - tasty
+    - tasty-hunit
     - tasty-smallcheck
