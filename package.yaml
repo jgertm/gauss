@@ -21,6 +21,7 @@ default-extensions:
 - MultiParamTypeClasses
 - NamedFieldPuns
 - OverloadedStrings
+- OverloadedLabels
 - PartialTypeSignatures
 - RankNTypes
 - ScopedTypeVariables

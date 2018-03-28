@@ -1,11 +1,13 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedLabels  #-}
 
 module Dev where
 
-import           Universum   hiding (reduce, show)
+import           Universum    hiding (reduce, show)
 
-import           Data.Vector (Vector)
+import           Data.Vector  (Vector)
+import           GHC.TypeLits
 import           Text.Printf
 import           Text.Show
 
@@ -29,6 +31,11 @@ instance Show Expression where
           Infix   -> intercalate opSym $ map show args
           Postfix -> (intercalate " " $ map show args) <> opSym
      in printf "(%s)" inner
+
+instance (KnownSymbol symbol) => IsLabel symbol Expression where
+  fromLabel = Variable (symbolVal p)
+    where p :: Proxy symbol
+          p = Proxy
 
 instance Num Expression where
   x + y = Application Addition [x,y]
