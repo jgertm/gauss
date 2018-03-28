@@ -81,19 +81,23 @@ getGroupByInverse iop = find (\g -> iop == inverse g) groups
 
 groups :: [Group]
 groups =
-  [ Group { operation = Addition, inverse = Negation, unit = 0 }
-  , Group { operation = Multiplication, inverse = Inversion, unit = 1 }
+  [ Group { operation = Addition, inverse = Negation, unit = 0, properties = [Commutative] }
+  , Group { operation = Multiplication, inverse = Inversion, unit = 1, properties = [Commutative, Distributive Addition] }
   ]
 
-data Group = Group { operation :: Operation
-                   , inverse   :: Operation
-                   , unit      :: Expression
-                   }
+data Property = Commutative
+              | Distributive Operation
+              deriving (Show, Eq)
 
+data Group = Group { operation  :: Operation
+                   , inverse    :: Operation
+                   , unit       :: Expression
+                   , properties :: [Property]
+                   } deriving (Show, Eq)
 
 type RewriteRule = Expression -> Maybe Expression
 
-doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeUnitApplication, removeDoubleInverse, removeInverseApplication :: RewriteRule
+doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeUnitApplication, removeDoubleInverse, removeInverseApplication, commuteArguments :: RewriteRule
 
 doNothing = Just
 
@@ -125,12 +129,19 @@ removeInverseApplication (Application op [x,y]) = do
   pure unit
 removeInverseApplication _ = Nothing
 
+commuteArguments (Application op [x,y]) = do
+  Group{properties} <- getGroupByOperation op
+  guard $ Commutative `elem` properties
+  pure $ Application op [y, x]
+commuteArguments _ = Nothing
+
 rules :: [RewriteRule]
 rules = [ doNothing
         , removeLeftUnitApplication
         , removeRightUnitApplication
         , removeDoubleInverse
         , removeInverseApplication
+        , commuteArguments
         ]
 
 reductions :: Expression -> [Expression]
