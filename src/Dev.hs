@@ -102,11 +102,11 @@ data Group = Group { operation  :: Operation
                    , properties :: [Property]
                    } deriving (Show, Eq)
 
-type RewriteRule = Expression -> Maybe Expression
+type RewriteRule = Expression -> [Expression]
 
 doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeUnitApplication, removeDoubleInverse, removeInverseApplication, commuteArguments :: RewriteRule
 
-doNothing = Just
+doNothing = pure
 
 removeLeftUnitApplication (Application op [unit', val]) = do
   Group{unit} <- getGroupByOperation op
@@ -136,10 +136,11 @@ removeInverseApplication (Application op [x,y]) = do
   pure unit
 removeInverseApplication _ = Nothing
 
-commuteArguments (Application op [x,y]) = do
+commuteArguments (Application op args) = do
   Group{properties} <- getGroupByOperation op
   guard $ Commutative `elem` properties
-  pure $ Application op [y, x]
+  args' <- permutations args
+  pure $ Application op args'
 commuteArguments _ = Nothing
 
 rules :: [RewriteRule]
@@ -152,11 +153,11 @@ rules = [ doNothing
         ]
 
 reductions :: Expression -> [Expression]
-reductions (Application op args) = catMaybes $ do
+reductions (Application op args) = do
   args' <- traverse reductions args
   let expr = Application op args'
   rule <- rules
-  pure $ rule expr
+  rule expr
 reductions expr = [expr]
 
 nodes :: Expression -> [Expression]
