@@ -112,13 +112,13 @@ removeLeftUnitApplication (Application op [unit', val]) = do
   Group{unit} <- getGroupByOperation op
   guard $ unit == unit'
   pure val
-removeLeftUnitApplication _ = Nothing
+removeLeftUnitApplication _ = fail "rule not applicable"
 
 removeRightUnitApplication (Application op [val, unit']) = do
   Group{unit} <- getGroupByOperation op
   guard $ unit == unit'
   pure val
-removeRightUnitApplication _ = Nothing
+removeRightUnitApplication _ = fail "rule not applicable"
 
 removeUnitApplication = liftA2 (<|>) removeLeftUnitApplication removeRightUnitApplication
 
@@ -126,7 +126,7 @@ removeDoubleInverse (Application negO [Application negI [val]]) = do
   guard $ negO == negI
   Group{} <- getGroupByInverse negO
   pure val
-removeDoubleInverse _ = Nothing
+removeDoubleInverse _ = fail "rule not applicable"
 
 removeInverseApplication (Application op [x,y]) = do
   Group{unit, inverse} <- getGroupByOperation op
@@ -134,14 +134,14 @@ removeInverseApplication (Application op [x,y]) = do
   xinv' <- removeDoubleInverse xinv <|> pure xinv
   guard $ xinv' == y
   pure unit
-removeInverseApplication _ = Nothing
+removeInverseApplication _ = fail "rule not applicable"
 
 commuteArguments (Application op args) = do
   Group{properties} <- getGroupByOperation op
   guard $ Commutative `elem` properties
   args' <- permutations args
   pure $ Application op args'
-commuteArguments _ = Nothing
+commuteArguments _ = fail "rule not applicable"
 
 rules :: [RewriteRule]
 rules = [ doNothing
