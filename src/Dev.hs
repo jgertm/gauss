@@ -51,6 +51,14 @@ instance Fractional Expression where
   recip x = Application Inversion [x]
   fromRational = Constant . fromRational
 
+isConstant :: Expression -> Bool
+isConstant (Constant _) = True
+isConstant _            = False
+
+value :: Expression -> Maybe Scalar
+value (Constant c) = Just c
+value _            = Nothing
+
 data Operation = Addition
                | Multiplication
                | Negation
@@ -92,6 +100,14 @@ groups =
   , Group { operation = Multiplication, inverse = Inversion, unit = 1, properties = [Commutative, Distributive Addition] }
   ]
 
+compute :: Operation -> [Scalar] -> Scalar
+compute Addition       = sum
+compute Multiplication = product
+compute Negation       = maybe 0 (negate . head) . nonEmpty
+compute Inversion      = maybe 1 (recip . head) . nonEmpty
+compute Exponentiation = error "Undefined operation"
+compute Log            = error "Undefined operation"
+
 data Property = Commutative
               | Distributive Operation
               deriving (Show, Eq)
@@ -104,7 +120,7 @@ data Group = Group { operation  :: Operation
 
 type RewriteRule = Expression -> [Expression]
 
-doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeUnitApplication, removeDoubleInverse, removeInverseApplication, commuteArguments :: RewriteRule
+doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeUnitApplication, removeDoubleInverse, removeInverseApplication, commuteArguments, applyOperation :: RewriteRule
 
 doNothing = pure
 
@@ -143,6 +159,11 @@ commuteArguments (Application op args) = do
   pure $ Application op args'
 commuteArguments _ = fail "rule not applicable"
 
+applyOperation (Application op args) = do
+  guard $ all isConstant args
+  pure . Constant . compute op $ catMaybes $ map value $ args
+applyOperation _                     = fail "rule not applicable"
+
 rules :: [RewriteRule]
 rules = [ doNothing
         , removeLeftUnitApplication
@@ -150,6 +171,7 @@ rules = [ doNothing
         , removeDoubleInverse
         , removeInverseApplication
         , commuteArguments
+        , applyOperation
         ]
 
 reductions :: Expression -> [Expression]

@@ -25,6 +25,8 @@ units = testGroup "Unit tests"
       reduce (2 * (1/2)) @?= 1
   , testCase "fuzz" $
       reduce (2 * (1 * (1/2))) @?= 1
+  , testCase "constant application" $
+      reduce (2 + 2) @?= 4
   ]
 
 props = testGroup "Property tests"
