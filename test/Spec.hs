@@ -11,7 +11,8 @@ import qualified Universum.Unsafe      as Unsafe
 main :: IO ()
 main = defaultMain tests
 
-tests :: TestTree
+tests, units, props :: TestTree
+
 tests = testGroup "Tests" [units, props]
 
 units = testGroup "Unit tests"

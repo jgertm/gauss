@@ -42,8 +42,6 @@ instance Num Expression where
   x * y = Application Multiplication [x,y]
   x - y = Application Addition [x, Application Negation [y]]
   negate x = Application Negation [x]
-  abs = undefined
-  signum = undefined
   fromInteger = Constant . fromInteger
 
 instance Fractional Expression where
@@ -86,6 +84,7 @@ operatorFixity op
   | op `elem` [Addition, Multiplication, Exponentiation] = Infix
   | op `elem` [Negation, Log] = Prefix
   | op `elem` [Inversion] = Postfix
+  | otherwise = error . toText $ "Undefined fixity for operation: " <> show op
 
 isGroup :: Operation -> Bool
 isGroup op = op `elem` map operation groups
