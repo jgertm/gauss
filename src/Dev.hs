@@ -89,9 +89,9 @@ operatorFixity op
 isGroup :: Operation -> Bool
 isGroup op = op `elem` map operation groups
 
-getGroupByOperation, getGroupByInverse :: Operation -> Maybe Group
-getGroupByOperation op = find (\g -> op == operation g) groups
-getGroupByInverse iop = find (\g -> iop == inverse g) groups
+getGroupByOperation, getGroupByInverse :: (MonadFail m) => Operation -> m Group
+getGroupByOperation op = maybe (fail "group not found") pure $ find (\g -> op == operation g) groups
+getGroupByInverse iop = maybe (fail "group not found") pure $ find (\g -> iop == inverse g) groups
 
 groups :: [Group]
 groups =
