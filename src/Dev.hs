@@ -26,7 +26,10 @@ instance Hashable Expression
 
 instance Show Expression where
   show (Variable v) = v
-  show (Constant c) = show c
+  show (Constant c) =
+    if (fromIntegral $ truncate c) == c
+      then show $ truncate c
+      else show c
   show (Application op args) =
     let opSym = show op
         inner = case operatorFixity op of
