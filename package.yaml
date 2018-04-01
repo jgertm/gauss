@@ -66,3 +66,11 @@ tests:
     - tasty
     - tasty-hunit
     - tasty-smallcheck
+
+benchmarks:
+  gauss-bench:
+    main: Bench.hs
+    source-dirs: bench
+    dependencies:
+      - criterion
+      - gauss
