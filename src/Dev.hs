@@ -4,7 +4,7 @@
 
 module Dev where
 
-import           Universum    hiding (reduce, show)
+import           Universum    hiding (Either (..), reduce, show)
 
 import qualified Data.HashSet as HS
 import           Data.Vector  (Vector)
@@ -100,8 +100,8 @@ getGroupByInverse iop = maybe (fail "group not found") pure $ find (\g -> iop ==
 
 groups :: [Group]
 groups =
-  [ Group { operation = Addition, inverse = Negation, unit = 0, properties = [Commutative] }
-  , Group { operation = Multiplication, inverse = Inversion, unit = 1, properties = [Commutative, Distributive Addition] }
+  [ Group { operation = Addition, inverse = Negation, unit = 0, properties = [Associative Left, Associative Right, Commutative] }
+  , Group { operation = Multiplication, inverse = Inversion, unit = 1, properties = [Associative Left, Associative Right, Commutative, Distributive Addition] }
   ]
 
 compute :: Operation -> [Scalar] -> Scalar
@@ -112,9 +112,14 @@ compute Inversion      = maybe 1 (recip . head) . nonEmpty
 compute Exponentiation = error "Undefined operation"
 compute Log            = error "Undefined operation"
 
-data Property = Commutative
+data Property = Associative Side
+              | Commutative
               | Distributive Operation
               deriving (Show, Eq)
+
+data Side = Left
+          | Right
+          deriving (Show, Eq)
 
 data Group = Group { operation  :: Operation
                    , inverse    :: Operation
@@ -124,7 +129,7 @@ data Group = Group { operation  :: Operation
 
 type RewriteRule = Expression -> [Expression]
 
-doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeUnitApplication, removeDoubleInverse, removeInverseApplication, commuteArguments, applyOperation :: RewriteRule
+doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeUnitApplication, removeDoubleInverse, removeInverseApplication, commuteArguments, applyOperation, reassociateLeft, reassociateRight :: RewriteRule
 
 doNothing = pure
 
@@ -168,6 +173,20 @@ applyOperation (Application op args) = do
   pure . Constant . compute op $ catMaybes $ map value $ args
 applyOperation _                     = fail "rule not applicable"
 
+reassociateLeft (Application opO [Application opI [x,y], z]) = do
+  guard $ opO == opI
+  Group{properties} <- getGroupByOperation opO
+  guard $ Associative Left `elem` properties
+  pure $ Application opO [x, Application opI [y,z]]
+reassociateLeft _ = fail "rule not applicable"
+
+reassociateRight (Application opO [x, Application opI [y,z]]) = do
+  guard $ opO == opI
+  Group{properties} <- getGroupByOperation opO
+  guard $ Associative Right `elem` properties
+  pure $ Application opO [Application opI [x,y], z]
+reassociateRight _ = fail "rule not applicable"
+
 rules :: [RewriteRule]
 rules = [ doNothing
         , removeLeftUnitApplication
@@ -176,6 +195,8 @@ rules = [ doNothing
         , removeInverseApplication
         , commuteArguments
         , applyOperation
+        , reassociateLeft
+        , reassociateRight
         ]
 
 reductions :: Expression -> HashSet Expression
