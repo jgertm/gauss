@@ -39,6 +39,7 @@ library:
   other-modules:
   exposed-modules:
   - Dev
+  - Examples
   dependencies:
   - bifunctors
   - ghc-prim
@@ -61,6 +62,7 @@ tests:
     source-dirs: test
     dependencies:
     - gauss
+    - smallcheck
     - tasty
     - tasty-hunit
     - tasty-smallcheck

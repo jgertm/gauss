@@ -1,6 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 import           Dev
+import           Examples
 
 import           Test.Tasty
 import           Test.Tasty.HUnit
@@ -17,17 +16,19 @@ tests = testGroup "Tests" [units, props]
 
 units = testGroup "Unit tests"
   [ testCase "left unit elimination" $
-      reduce (1 + 0) @?= 1
+      reduce foo @?= fooR
   , testCase "double negation" $
-      reduce (-(-1)) @?= 1
+      reduce bar @?= barR
   , testCase "value plus negation yields unit" $
-      reduce (1 + (-1)) @?= 0
+      reduce baz @?= bazR
   , testCase "value times inverse yields unit" $
-      reduce (2 * (1/2)) @?= 1
+      reduce quux @?= quuxR
   , testCase "fuzz" $
-      reduce (2 * (1 * (1/2))) @?= 1
+      reduce fuzz @?= fuzzR
   , testCase "constant application" $
-      reduce (2 + 2) @?= 4
+      reduce muk @?= mukR
+  , testCase "freedom of association" $
+      reduce flub @?= flubR
   ]
 
 props = testGroup "Property tests"
@@ -37,10 +38,3 @@ props = testGroup "Property tests"
             Group{unit} = Unsafe.fromJust $ getGroupByOperation Addition
          in (reduce $ Application Addition [unit, n']) == n'
   ]
-
--- foo, baz, bar, quux, fuzz :: Expression
--- foo = 1 + 0
--- baz = (-(-1))
--- bar = 1 + (-1)
--- quux = 2 * (1/2)
--- fuzz = 2 * (1 * (1/2))
