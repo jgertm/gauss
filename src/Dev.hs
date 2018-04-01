@@ -51,7 +51,7 @@ instance Num Expression where
   fromInteger = Constant . fromInteger
 
 instance Fractional Expression where
-  x / y = Application Multiplication [x, Application Inversion [y]]
+  x / y = Application Multiplication [x, recip y]
   recip x = Application Inversion [x]
   fromRational = Constant . fromRational
 
