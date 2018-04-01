@@ -77,7 +77,7 @@ instance Show Operation where
   show op = case op of
               Addition       -> "+"
               Multiplication -> " "
-              Negation       -> "−"
+              Negation       -> "-"
               Inversion      -> "^(-1)"
               Exponentiation -> "^"
               Log            -> "log"
