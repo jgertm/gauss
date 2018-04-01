@@ -6,6 +6,7 @@ module Dev where
 
 import           Universum    hiding (reduce, show)
 
+import qualified Data.HashSet as HS
 import           Data.Vector  (Vector)
 import           GHC.TypeLits
 import           Text.Printf
@@ -19,7 +20,9 @@ newtype Tensor (dims :: [Int]) = Tensor (Vector Scalar)
 data Expression = Variable String
                 | Constant Scalar
                 | Application Operation [Expression]
-                deriving (Eq)
+                deriving (Eq, Generic)
+
+instance Hashable Expression
 
 instance Show Expression where
   show (Variable v) = v
@@ -63,7 +66,9 @@ data Operation = Addition
                | Inversion
                | Exponentiation
                | Log
-               deriving (Eq)
+               deriving (Eq, Generic)
+
+instance Hashable Operation
 
 instance Show Operation where
   show op = case op of
@@ -77,7 +82,7 @@ instance Show Operation where
 data Fixity = Prefix
             | Infix
             | Postfix
-            deriving (Show, Eq)
+            deriving (Show, Eq, Generic)
 
 operatorFixity :: Operation -> Fixity
 operatorFixity op
@@ -173,13 +178,20 @@ rules = [ doNothing
         , applyOperation
         ]
 
-reductions :: Expression -> [Expression]
-reductions (Application op args) = do
-  args' <- traverse reductions args
-  let expr = Application op args'
-  rule <- rules
-  rule expr
-reductions expr = [expr]
+reductions :: Expression -> HashSet Expression
+reductions expr = executingState mempty $ go expr
+  where go :: Expression -> State (HashSet Expression) ()
+        go (Application op args) = do
+          seenRewrites <- get
+          let newRewrites :: HashSet Expression = HS.fromList $ do
+                args' <- traverse (HS.toList . reductions) args
+                rule <- rules
+                result <- rule $ Application op args'
+                pure result
+              frontier = newRewrites `HS.difference` seenRewrites
+          modify $ HS.union newRewrites
+          traverse_ go frontier
+        go expr = put $ one expr
 
 nodes :: Expression -> [Expression]
 nodes c@(Constant _)         = [c]
