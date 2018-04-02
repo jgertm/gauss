@@ -169,6 +169,7 @@ newline: native
 language_extensions:
   - NoImplicitPrelude
   - TypeFamilies
+  - LambdaCase
   - MultiParamTypeClasses
   - NamedFieldPuns
   - ScopedTypeVariables

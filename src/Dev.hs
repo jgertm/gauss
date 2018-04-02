@@ -4,7 +4,7 @@
 
 module Dev where
 
-import           Universum    hiding (Either (..), reduce, show)
+import           Universum    hiding (Either (..), Identity, reduce, show)
 
 import qualified Data.HashSet as HS
 import           Data.Vector  (Vector)
@@ -94,41 +94,79 @@ operatorFixity op
   | op `elem` [Inversion] = Postfix
   | otherwise = error . toText $ "Undefined fixity for operation: " <> show op
 
-isGroup :: Operation -> Bool
-isGroup op = op `elem` map operation groups
-
-getGroupByOperation, getGroupByInverse :: (MonadFail m) => Operation -> m Group
-getGroupByOperation op = maybe (fail "group not found") pure $ find (\g -> op == operation g) groups
-getGroupByInverse iop = maybe (fail "group not found") pure $ find (\g -> iop == inverse g) groups
-
-groups :: [Group]
-groups =
-  [ Group { operation = Addition, inverse = Negation, unit = 0, properties = [Associative Left, Associative Right, Commutative] }
-  , Group { operation = Multiplication, inverse = Inversion, unit = 1, properties = [Associative Left, Associative Right, Commutative, Distributive Addition] }
-  ]
-
-compute :: Operation -> [Scalar] -> Scalar
-compute Addition       = sum
-compute Multiplication = product
-compute Negation       = maybe 0 (negate . head) . nonEmpty
-compute Inversion      = maybe 1 (recip . head) . nonEmpty
-compute Exponentiation = error "Undefined operation"
-compute Log            = error "Undefined operation"
-
-data Property = Associative Side
+data Property = Associative { getSide :: Side }
               | Commutative
-              | Distributive Operation
-              deriving (Show, Eq)
+              | Distributive { getOperation :: Operation }
+              | Closure
+              | Identity { getSide :: Side, getUnit :: Expression }
+              | Inverse { getOperation :: Operation }
+              | Computable { getFunction :: ([Scalar] -> Scalar) }
+              deriving (Eq)
+
+instance Eq (a -> b) where
+  _ == _ = True
 
 data Side = Left
           | Right
           deriving (Show, Eq)
 
-data Group = Group { operation  :: Operation
-                   , inverse    :: Operation
-                   , unit       :: Expression
-                   , properties :: [Property]
-                   } deriving (Show, Eq)
+data Structure = Structure { operation :: Operation, properties :: [Property] }
+
+instance Eq Structure where
+  (Structure a _) == (Structure b _) = a == b
+
+structures :: [Structure]
+structures =
+  [ Structure Addition [ Associative Left, Associative Right
+                       , Commutative
+                       , Closure
+                       , Identity Left 0, Identity Right 0
+                       , Inverse Negation
+                       , Computable sum
+                       ]
+  , Structure Multiplication [ Associative Left, Associative Right
+                             , Commutative
+                             , Distributive Addition
+                             , Closure
+                             , Identity Left 1, Identity Right 1
+                             , Inverse Inversion
+                             , Computable product
+                             ]
+  ]
+
+structureByOp, structureByInverse :: Operation -> Maybe Structure
+structureByOp op = find (\(Structure op' _) -> op == op') structures
+structureByInverse inv = find (\(Structure _ props) -> Inverse inv `elem` props) structures
+
+leftUnit, rightUnit :: Structure -> Maybe Expression
+leftUnit =
+  map getUnit
+  . find (\case
+            Identity Left _ -> True
+            _ -> False)
+  . properties
+rightUnit =
+  map getUnit
+  . find (\case
+            Identity Right _ -> True
+            _ -> False)
+  . properties
+
+inverse :: Structure -> Maybe Operation
+inverse =
+  map getOperation
+  . find (\case
+            Inverse _ -> True
+            _ -> False)
+  . properties
+
+computable :: Structure -> Maybe ([Scalar] -> Scalar)
+computable =
+  map getFunction
+  . find (\case
+            Computable _ -> True
+            _ -> False)
+  . properties
 
 type RewriteRule = Expression -> [Expression]
 
@@ -136,58 +174,59 @@ doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeUnitAppl
 
 doNothing = pure
 
-removeLeftUnitApplication (Application op [unit', val]) = do
-  Group{unit} <- getGroupByOperation op
+removeLeftUnitApplication (Application op [unit', val]) = maybeToList $ do
+  unit <- leftUnit =<< structureByOp op
   guard $ unit == unit'
   pure val
 removeLeftUnitApplication _ = fail "rule not applicable"
 
-removeRightUnitApplication (Application op [val, unit']) = do
-  Group{unit} <- getGroupByOperation op
+removeRightUnitApplication (Application op [val, unit']) = maybeToList $ do
+  unit <- rightUnit =<< structureByOp op
   guard $ unit == unit'
   pure val
 removeRightUnitApplication _ = fail "rule not applicable"
 
 removeUnitApplication = liftA2 (<|>) removeLeftUnitApplication removeRightUnitApplication
 
-removeDoubleInverse (Application negO [Application negI [val]]) = do
+removeDoubleInverse (Application negO [Application negI [val]]) = maybeToList $ do
+  _ <- structureByInverse negO
   guard $ negO == negI
-  Group{} <- getGroupByInverse negO
   pure val
 removeDoubleInverse _ = fail "rule not applicable"
 
-removeInverseApplication (Application op [x,y]) = do
-  Group{unit, inverse} <- getGroupByOperation op
+removeInverseApplication (Application op [x,y]) = maybeToList $ do
+  structure <- structureByOp op
+  unit <- leftUnit structure
+  inverse <- inverse structure
   let xinv = Application inverse [x]
-  xinv' <- removeDoubleInverse xinv <|> pure xinv
+  xinv' <- safeHead $ removeDoubleInverse xinv <|> pure xinv
   guard $ xinv' == y
   pure unit
 removeInverseApplication _ = fail "rule not applicable"
 
 commuteArguments (Application op args) = do
-  Group{properties} <- getGroupByOperation op
-  guard $ Commutative `elem` properties
+  -- Structure _ properties <-
+  guard $ (elem Commutative) . maybeToMonoid . map properties $ structureByOp op
   args' <- permutations args
   pure $ Application op args'
 commuteArguments _ = fail "rule not applicable"
 
-applyOperation (Application op args) = do
+applyOperation (Application op args) = maybeToList $ do
   guard $ all isConstant args
-  pure . Constant . compute op $ catMaybes $ map value $ args
+  f <- computable =<< structureByOp op
+  pure . Constant . f . mapMaybe value $ args
 applyOperation _                     = fail "rule not applicable"
 
-reassociateLeft (Application opO [Application opI [x,y], z]) = do
-  guard $ opO == opI
-  Group{properties} <- getGroupByOperation opO
-  guard $ Associative Left `elem` properties
-  pure $ Application opO [x, Application opI [y,z]]
+reassociateLeft (Application op [Application op' [x,y], z]) = maybeToList $ do
+  guard $ op == op'
+  guard $ elem (Associative Left) . maybeToMonoid . map properties $ structureByOp op
+  pure $ Application op [x, Application op' [y,z]]
 reassociateLeft _ = fail "rule not applicable"
 
-reassociateRight (Application opO [x, Application opI [y,z]]) = do
-  guard $ opO == opI
-  Group{properties} <- getGroupByOperation opO
-  guard $ Associative Right `elem` properties
-  pure $ Application opO [Application opI [x,y], z]
+reassociateRight (Application op [x, Application op' [y,z]]) = maybeToList $ do
+  guard $ op == op'
+  guard $ elem (Associative Right) . maybeToMonoid . map properties $ structureByOp op
+  pure $ Application op [Application op' [x,y], z]
 reassociateRight _ = fail "rule not applicable"
 
 rules :: [RewriteRule]

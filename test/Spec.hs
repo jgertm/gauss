@@ -35,6 +35,6 @@ props = testGroup "Property tests"
   [ testProperty "left unit elimination" $
       \n ->
         let n' = Constant n
-            Group{unit} = Unsafe.fromJust $ getGroupByOperation Addition
+            unit = Unsafe.fromJust $ leftUnit =<< structureByOp Addition
          in (reduce $ Application Addition [unit, n']) == n'
   ]
