@@ -1,13 +1,9 @@
-# resolver: nightly-2017-09-02
 resolver: lts-11.2
 
 packages:
 - '.'
-# - location: ../jgrprld
-#   extra-dep: true
 
 extra-deps:
-# - containers-0.5.10.2
 
 flags: {}
 

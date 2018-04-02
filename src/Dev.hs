@@ -27,13 +27,13 @@ instance Hashable Expression
 instance Show Expression where
   show (Variable v) = v
   show (Constant c) =
-    if (fromIntegral $ truncate c) == c
+    if fromIntegral (truncate c) == c
       then show $ truncate c
       else show c
   show (Application op args) =
     let opSym = show op
         inner = case operatorFixity op of
-          Prefix  -> opSym <> " " <> (intercalate " " $ map show args)
+          Prefix  -> opSym <> " " <> intercalate " " (map show args)
           Infix   -> intercalate opSym $ map show args
           Postfix -> (intercalate " " $ map show args) <> opSym
      in printf "(%s)" inner
@@ -68,19 +68,19 @@ data Operation = Addition
                | Negation
                | Inversion
                | Exponentiation
-               | Log
+               | Ln
                deriving (Eq, Generic)
 
 instance Hashable Operation
 
 instance Show Operation where
-  show op = case op of
-              Addition       -> "+"
-              Multiplication -> " "
-              Negation       -> "-"
-              Inversion      -> "^(-1)"
-              Exponentiation -> "^"
-              Log            -> "log"
+  show = \case
+           Addition       -> "+"
+           Multiplication -> " "
+           Negation       -> "-"
+           Inversion      -> "^(-1)"
+           Exponentiation -> "^"
+           Ln             -> "ln"
 
 data Fixity = Prefix
             | Infix
@@ -90,7 +90,7 @@ data Fixity = Prefix
 operatorFixity :: Operation -> Fixity
 operatorFixity op
   | op `elem` [Addition, Multiplication, Exponentiation] = Infix
-  | op `elem` [Negation, Log] = Prefix
+  | op `elem` [Negation, Ln] = Prefix
   | op `elem` [Inversion] = Postfix
   | otherwise = error . toText $ "Undefined fixity for operation: " <> show op
 
@@ -100,7 +100,7 @@ data Property = Associative { getSide :: Side }
               | Closure
               | Identity { getSide :: Side, getUnit :: Expression }
               | Inverse { getOperation :: Operation }
-              | Computable { getFunction :: ([Scalar] -> Scalar) }
+              | Computable { getFunction :: [Scalar] -> Scalar }
               deriving (Eq)
 
 instance Eq (a -> b) where
@@ -206,7 +206,7 @@ removeInverseApplication _ = fail "rule not applicable"
 
 commuteArguments (Application op args) = do
   -- Structure _ properties <-
-  guard $ (elem Commutative) . maybeToMonoid . map properties $ structureByOp op
+  guard $ elem Commutative . maybeToMonoid . map properties $ structureByOp op
   args' <- permutations args
   pure $ Application op args'
 commuteArguments _ = fail "rule not applicable"
@@ -246,7 +246,7 @@ reductions expr = executingState mempty $ go expr
   where go :: Expression -> State (HashSet Expression) ()
         go (Application op args) = do
           seenRewrites <- get
-          let newRewrites :: HashSet Expression = HS.fromList $ do
+          let newRewrites = HS.fromList $ do
                 args' <- traverse (HS.toList . reductions) args
                 rule <- rules
                 result <- rule $ Application op args'
