@@ -1,8 +1,13 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedLabels  #-}
 
-module Dev where
+module Dev
+  ( Expression(..)
+  , reduce
+  , reductions
+  , nodes
+  , score
+  ) where
 
 import           Universum    hiding (Either (..), Identity, reduce, show)
 
@@ -58,6 +63,9 @@ instance Fractional Expression where
   recip x = Application Inversion [x]
   fromRational = Constant . fromRational
 
+instance Floating Expression where
+  x ** y = Application Exponentiation [x, y]
+
 isConstant :: Expression -> Bool
 isConstant (Constant _) = True
 isConstant _            = False
@@ -103,7 +111,8 @@ operatorFixity op
 data Property
   = Associative { getSide :: Side }
   | Commutative
-  | Distributive { getOperation :: Operation }
+  | Distributive { getSide      :: Side
+                 , getOperation :: Operation }
   | Closure
   | Identity { getSide :: Side
              , getUnit :: Expression }
@@ -145,7 +154,8 @@ structures =
       [ Associative Left
       , Associative Right
       , Commutative
-      , Distributive Addition
+      , Distributive Left Addition
+      , Distributive Right Addition
       , Closure
       , Identity Left 1
       , Identity Right 1
@@ -154,11 +164,22 @@ structures =
       ]
   ]
 
-structureByOp, structureByInverse :: Operation -> Maybe Structure
+structureByOp, structureByInverse, structureByDistributor ::
+     Operation -> Maybe Structure
 structureByOp op = find (\(Structure op' _) -> op == op') structures
 
 structureByInverse inv =
   find (\(Structure _ props) -> Inverse inv `elem` props) structures
+
+structureByDistributor op =
+  find
+    (\(Structure _ props) ->
+       any
+         (\case
+            Distributive _ op' -> op == op'
+            _ -> False)
+         props)
+    structures
 
 leftUnit, rightUnit :: Structure -> Maybe Expression
 leftUnit =
@@ -186,6 +207,15 @@ inverse =
        _ -> False) .
   properties
 
+distributes :: Structure -> Maybe Operation
+distributes =
+  map getOperation .
+  find
+    (\case
+       Distributive _ _ -> True
+       _ -> False) .
+  properties
+
 computable :: Structure -> Maybe ([Scalar] -> Scalar)
 computable =
   map getFunction .
@@ -197,7 +227,7 @@ computable =
 
 type RewriteRule = Expression -> [Expression]
 
-doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeDoubleInverse, removeInverseApplication, commute, apply, reassociate ::
+doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeDoubleInverse, removeInverseApplication, commute, apply, reassociate, distribute, factor, expandInverse, absorbInverse, foo, bar ::
      RewriteRule
 doNothing = pure
 
@@ -235,7 +265,7 @@ removeInverseApplication _ = fail "rule not applicable"
 
 commute (Application op args) = do
   guard $ elem Commutative . maybeToMonoid . map properties $ structureByOp op
-  args' <- permutations args
+  args' <- filter (\e -> e /= args) $ permutations args
   pure $ Application op args'
 commute _ = fail "rule not applicable"
 
@@ -262,6 +292,62 @@ reassociate (Application op [x, Application op' [y, z]]) =
     pure $ Application op [Application op' [x, y], z]
 reassociate _ = fail "rule not applicable"
 
+distribute (Application opO [a, Application opI [b, c]]) =
+  maybeToList $ do
+    Structure _ props <- structureByOp opO
+    guard $ Distributive Left opI `elem` props
+    pure $ Application opI [Application opO [a, b], Application opO [a, c]]
+distribute (Application opO [Application opI [b, c], a]) =
+  maybeToList $ do
+    Structure _ props <- structureByOp opO
+    guard $ Distributive Right opI `elem` props
+    pure $ Application opI [Application opO [b, a], Application opO [c, a]]
+distribute _ = fail "rule not applicable"
+
+factor (Application opO [Application opIL [a, b], Application opIR [a', b']]) = do
+  guard $ opIL == opIR
+  Structure _ props <- maybeToList $ structureByOp opIL
+  let leftFactor = do
+        guard $ and [a == a', Distributive Left opO `elem` props]
+        pure $ Application opIL [a, Application opO [b, b']]
+      rightFactor = do
+        guard $ and [b == b', Distributive Right opO `elem` props]
+        pure $ Application opIL [Application opO [a, a'], b]
+  catMaybes [leftFactor, rightFactor]
+factor _ = fail "rule not applicable"
+
+expandInverse (Application inv [x]) =
+  maybeToMonoid $ do
+    Structure op _ <- structureByInverse inv
+    struct@(Structure op' _) <- structureByDistributor op
+    let leftExpansion = do
+          unit <- leftUnit struct
+          guard $ x /= unit
+          pure $ Application op' [Application inv [unit], x]
+        rightExpansion = do
+          unit <- rightUnit struct
+          guard $ x /= unit
+          pure $ Application op' [x, Application inv [unit]]
+    pure $ catMaybes [leftExpansion, rightExpansion]
+expandInverse _ = fail "rule not applicable"
+
+absorbInverse (Application op [Application inv [unit], x]) =
+  maybeToList $ do
+    struct <- structureByOp op
+    unit' <- leftUnit struct
+    guard $ unit == unit'
+    inv' <- inverse =<< structureByOp =<< distributes struct
+    guard $ inv == inv'
+    pure $ Application inv [x]
+absorbInverse (Application op [x, Application inv [unit]]) =
+  maybeToList $ do
+    struct <- structureByOp op
+    unit' <- rightUnit struct
+    guard $ unit == unit'
+    inv' <- inverse =<< structureByOp =<< distributes struct
+    guard $ inv == inv'
+    pure $ Application inv [x]
+absorbInverse _ = fail "rule not applicable"
 rules :: [RewriteRule]
 rules =
   [ doNothing
@@ -272,6 +358,10 @@ rules =
   , commute
   , apply
   , reassociate
+  , distribute
+  , factor
+  , expandInverse
+  , absorbInverse
   ]
 
 reductions :: Expression -> HashSet Expression
