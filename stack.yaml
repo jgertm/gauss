@@ -8,3 +8,7 @@ extra-deps:
 flags: {}
 
 extra-package-dbs: []
+
+nix:
+  packages:
+    - llvm_39
