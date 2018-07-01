@@ -1,32 +1,41 @@
-{-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE Strict #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-missing-methods #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Dev
   ( Expression(..)
   , reduce
   , reductions
+  , rules
+  , focus
+  , foci
+  , index
+  , replace
   , nodes
   , score
   ) where
 
-import           Universum    hiding (Either (..), Identity, reduce, show)
+import           Universum           hiding (Either (..), Identity, reduce)
 
-import qualified Data.HashSet as HS
-import           Data.Vector  (Vector)
+import qualified Data.HashMap.Strict as HM
+import qualified Data.HashSet        as HS
+import qualified Data.Set            as S
+import           Data.Vector         (Vector)
+import qualified Data.Vector         as V
 import           GHC.TypeLits
 import           Text.Printf
-import           Text.Show
+import qualified Text.Show           as TS
 
 type Scalar = Double
-
-newtype Tensor (dims :: [Int]) = Tensor (Vector Scalar)
 
 data Expression
   = Variable String
   | Constant Scalar
   | Application Operation
                 [Expression]
-  deriving (Eq, Generic)
+  deriving (Eq, Ord, Generic)
 
 instance Hashable Expression
 
@@ -40,9 +49,9 @@ instance Show Expression where
     let opSym = show op
         inner =
           case operatorFixity op of
-            Prefix  -> opSym <> " " <> intercalate " " (map show args)
-            Infix   -> intercalate opSym $ map show args
-            Postfix -> (intercalate " " $ map show args) <> opSym
+            Prefix  -> unwords $ opSym : map show args
+            Infix   -> mconcat $ intersperse opSym $ map show args
+            Postfix -> unwords (map show args) <> opSym
      in printf "(%s)" inner
 
 instance (KnownSymbol symbol) => IsLabel symbol Expression where
@@ -66,6 +75,20 @@ instance Fractional Expression where
 instance Floating Expression where
   x ** y = Application Exponentiation [x, y]
 
+cataM :: (Monad m) => (Expression -> m Expression) -> Expression -> m Expression
+cataM f (Application op args) = do
+  args' <- traverse f args
+  f (Application op args')
+cataM f expr = f expr
+
+op :: Expression -> Maybe Operation
+op (Application op _) = Just op
+op _                  = Nothing
+
+args :: Expression -> Maybe [Expression]
+args (Application _ args) = Just args
+args _                    = Nothing
+
 isConstant :: Expression -> Bool
 isConstant (Constant _) = True
 isConstant _            = False
@@ -81,7 +104,7 @@ data Operation
   | Inversion
   | Exponentiation
   | Ln
-  deriving (Eq, Generic)
+  deriving (Eq, Ord, Enum, Bounded, Generic)
 
 instance Hashable Operation
 
@@ -105,8 +128,9 @@ operatorFixity :: Operation -> Fixity
 operatorFixity op
   | op `elem` [Addition, Multiplication, Exponentiation] = Infix
   | op `elem` [Negation, Ln] = Prefix
-  | op `elem` [Inversion] = Postfix
-  | otherwise = error . toText $ "Undefined fixity for operation: " <> show op
+  | op == Inversion = Postfix
+  | otherwise =
+    error . toText $ "Undefined fixity for operation: " <> TS.show op
 
 data Property
   = Associative { getSide :: Side }
@@ -117,69 +141,91 @@ data Property
   | Identity { getSide :: Side
              , getUnit :: Expression }
   | Inverse { getOperation :: Operation }
-  | Computable { getFunction :: [Scalar] -> Scalar }
-  deriving (Eq)
+  deriving (Eq, Generic)
 
-instance Eq (a -> b) where
-  _ == _ = True
+instance Hashable Property
 
 data Side
   = Left
   | Right
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
+
+instance Hashable Side
 
 data Structure = Structure
   { operation  :: Operation
-  , properties :: [Property]
+  , properties :: HashSet Property
   }
 
 instance Eq Structure where
   (Structure a _) == (Structure b _) = a == b
 
-structures :: [Structure]
+data Structures = Structures
+  { byOp          :: Vector (Maybe Structure)
+  , byInverse     :: Vector (Maybe Structure)
+  , byDistributor :: Vector (Maybe Structure)
+  }
+
+structures :: Structures
 structures =
-  [ Structure
-      Addition
-      [ Associative Left
-      , Associative Right
-      , Commutative
-      , Closure
-      , Identity Left 0
-      , Identity Right 0
-      , Inverse Negation
-      , Computable sum
+  Structures
+    { byOp = map (\op -> find (\struct -> operation struct == op) structL) opV
+    , byInverse =
+        map
+          (\op -> find (\(Structure _ props) -> Inverse op `elem` props) structL)
+          opV
+    , byDistributor =
+        map
+          (\op ->
+             find
+               (\(Structure _ props) ->
+                  (Distributive Left op `elem` props) ||
+                  (Distributive Right op `elem` props))
+               structL)
+          opV
+    }
+  where
+    opV = V.enumFromTo minBound maxBound
+    structL =
+      [ Structure Addition $
+        HS.fromList
+          [ Associative Left
+          , Associative Right
+          , Commutative
+          , Closure
+          , Identity Left 0
+          , Identity Right 0
+          , Inverse Negation
+          ]
+      , Structure Multiplication $
+        HS.fromList
+          [ Associative Left
+          , Associative Right
+          , Commutative
+          , Distributive Left Addition
+          , Distributive Right Addition
+          , Closure
+          , Identity Left 1
+          , Identity Right 1
+          , Inverse Inversion
+          ]
+      , Structure Exponentiation $
+        HS.fromList
+          [ Distributive Right Multiplication
+          , Closure
+          , Identity Right 1
+          , Inverse Ln
+          ]
       ]
-  , Structure
-      Multiplication
-      [ Associative Left
-      , Associative Right
-      , Commutative
-      , Distributive Left Addition
-      , Distributive Right Addition
-      , Closure
-      , Identity Left 1
-      , Identity Right 1
-      , Inverse Inversion
-      , Computable product
-      ]
-  ]
 
 structureByOp, structureByInverse, structureByDistributor ::
      Operation -> Maybe Structure
-structureByOp op = find (\(Structure op' _) -> op == op') structures
+structureByOp op = V.unsafeIndex (byOp structures) (fromEnum op)
 
-structureByInverse inv =
-  find (\(Structure _ props) -> Inverse inv `elem` props) structures
+structureByInverse inv = V.unsafeIndex (byInverse structures) (fromEnum inv)
 
 structureByDistributor op =
-  find
-    (\(Structure _ props) ->
-       any
-         (\case
-            Distributive _ op' -> op == op'
-            _ -> False)
-         props)
-    structures
+  V.unsafeIndex (byDistributor structures) (fromEnum op)
 
 leftUnit, rightUnit :: Structure -> Maybe Expression
 leftUnit =
@@ -216,18 +262,9 @@ distributes =
        _ -> False) .
   properties
 
-computable :: Structure -> Maybe ([Scalar] -> Scalar)
-computable =
-  map getFunction .
-  find
-    (\case
-       Computable _ -> True
-       _ -> False) .
-  properties
-
 type RewriteRule = Expression -> [Expression]
 
-doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeDoubleInverse, removeInverseApplication, commute, apply, reassociate, distribute, factor, expandInverse, absorbInverse, foo, bar ::
+doNothing, removeLeftUnitApplication, removeRightUnitApplication, removeDoubleInverse, removeInverseApplication, commute, apply, reassociate, distribute, factor, raise, expandInverse, absorbInverse ::
      RewriteRule
 doNothing = pure
 
@@ -265,14 +302,18 @@ removeInverseApplication _ = fail "rule not applicable"
 
 commute (Application op args) = do
   guard $ elem Commutative . maybeToMonoid . map properties $ structureByOp op
-  args' <- filter (\e -> e /= args) $ permutations args
+  args' <- filter (/= args) $ permutations args
   pure $ Application op args'
 commute _ = fail "rule not applicable"
 
 apply (Application op args) =
   maybeToList $ do
     guard $ all isConstant args
-    f <- computable =<< structureByOp op
+    f <-
+      case op of
+        Addition       -> Just sum
+        Multiplication -> Just product
+        _              -> Nothing
     pure . Constant . f . mapMaybe value $ args
 apply _ = fail "rule not applicable"
 
@@ -308,13 +349,19 @@ factor (Application opO [Application opIL [a, b], Application opIR [a', b']]) = 
   guard $ opIL == opIR
   Structure _ props <- maybeToList $ structureByOp opIL
   let leftFactor = do
-        guard $ and [a == a', Distributive Left opO `elem` props]
+        guard $ a == a' && Distributive Left opO `elem` props
         pure $ Application opIL [a, Application opO [b, b']]
       rightFactor = do
-        guard $ and [b == b', Distributive Right opO `elem` props]
+        guard $ b == b' && Distributive Right opO `elem` props
         pure $ Application opIL [Application opO [a, a'], b]
   catMaybes [leftFactor, rightFactor]
 factor _ = fail "rule not applicable"
+
+raise (Application op as@(a:_)) = do
+  guard $ all (== a) as
+  Structure liftedOp _ <- maybeToList $ structureByDistributor op
+  pure $ Application liftedOp [a, Constant . fromIntegral $ length as]
+raise _ = fail "rule not applicable"
 
 expandInverse (Application inv [x]) =
   maybeToMonoid $ do
@@ -335,9 +382,8 @@ absorbInverse (Application op [Application inv [unit], x]) =
   maybeToList $ do
     struct <- structureByOp op
     unit' <- leftUnit struct
-    guard $ unit == unit'
     inv' <- inverse =<< structureByOp =<< distributes struct
-    guard $ inv == inv'
+    guard $ unit == unit' && inv == inv'
     pure $ Application inv [x]
 absorbInverse (Application op [x, Application inv [unit]]) =
   maybeToList $ do
@@ -348,6 +394,7 @@ absorbInverse (Application op [x, Application inv [unit]]) =
     guard $ inv == inv'
     pure $ Application inv [x]
 absorbInverse _ = fail "rule not applicable"
+
 rules :: [RewriteRule]
 rules =
   [ doNothing
@@ -355,31 +402,58 @@ rules =
   , removeRightUnitApplication
   , removeDoubleInverse
   , removeInverseApplication
-  , commute
+  -- , commute -- FIXME
   , apply
   , reassociate
   , distribute
   , factor
+  , raise
   , expandInverse
   , absorbInverse
   ]
 
-reductions :: Expression -> HashSet Expression
+reductions :: Expression -> Set Expression
 reductions expr = executingState mempty $ go expr
   where
-    go :: Expression -> State (HashSet Expression) ()
+    go :: Expression -> State (Set Expression) ()
     go (Application op args) = do
       seenRewrites <- get
       let newRewrites =
-            HS.fromList $ do
-              args' <- traverse (HS.toList . reductions) args
+            S.fromList $ do
+              args' <- traverse (S.toList . reductions) args
               rule <- rules
-              result <- rule $ Application op args'
-              pure result
-          frontier = newRewrites `HS.difference` seenRewrites
-      modify $ HS.union newRewrites
+              rule $ Application op args'
+          frontier = newRewrites `S.difference` seenRewrites
+      modify $ S.union newRewrites
       traverse_ go frontier
     go expr = put $ one expr
+
+focus :: Expression -> [Int] -> Maybe Expression
+focus exp [] = Just exp
+focus (Application _ exps) (i:is) = do
+  exp <- exps `index` i
+  focus exp is
+focus _ _ = Nothing
+
+foci :: Expression -> [[Int]]
+foci (Application _ exps) = tops <> subs
+  where
+    tops = [[i] | i <- [0 .. pred $ length exps]]
+    subs = concat . zipWith (\t ss -> map (t <>) ss) tops . map foci $ exps
+foci _ = mempty
+
+replace :: Expression -> [Int] -> Expression -> Maybe Expression
+replace _ [] new = Just new
+replace exp@(Application op exps) path@(i:is) new = do
+  guard $ isJust (exp `focus` path)
+  new' <- replace down is new
+  pure $ Application op (mconcat [pre, [new'], post])
+  where
+    (pre, down:post) = splitAt i exps
+replace _ _ _ = Nothing
+
+index :: [a] -> Int -> Maybe a
+index xs i = safeHead . snd . splitAt i $ xs
 
 nodes :: Expression -> [Expression]
 nodes c@(Constant _)         = [c]

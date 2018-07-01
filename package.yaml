@@ -7,66 +7,79 @@ copyright: 2016 Tim Jäger
 license: BSD3
 github: jgertm/gauss
 ghc-options:
-- -Wall
-- -fno-warn-type-defaults
-- -O2
-- -fllvm
-- -threaded
-- -rtsopts
-- -with-rtsopts=-N
+  - -Wall
+  - -fno-warn-type-defaults
+  - -O2
+  # - -fllvm
+  - -threaded
+  - -rtsopts
+  - -with-rtsopts=-N
 default-extensions:
-- DeriveGeneric
-- ExtendedDefaultRules
-- FlexibleContexts
-- FlexibleInstances
-- GADTs
-- LambdaCase
-- MultiParamTypeClasses
-- NamedFieldPuns
-- NoImplicitPrelude
-- OverloadedStrings
-- OverloadedLabels
-- PartialTypeSignatures
-- RankNTypes
-- ScopedTypeVariables
-- StandaloneDeriving
-- TypeFamilies
-- TypeOperators
+  - ApplicativeDo
+  - DeriveGeneric
+  - ExtendedDefaultRules
+  - FlexibleContexts
+  - FlexibleInstances
+  - GADTs
+  - LambdaCase
+  - MultiParamTypeClasses
+  - NamedFieldPuns
+  - NoImplicitPrelude
+  - OverloadedStrings
+  - OverloadedLabels
+  - PartialTypeSignatures
+  - RankNTypes
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TypeApplications
+  - TypeFamilies
+  - TypeOperators
+  - UnicodeSyntax
 dependencies:
-- base
-- vector
-- universum
-- unordered-containers
+  - base
+  - universum
 
 library:
   source-dirs: src
   other-modules:
   exposed-modules:
-  - Dev
-  - Examples
+    - Dev
+    - Examples
   dependencies:
-  - bifunctors
-  - ghc-prim
-  - integer-gmp
+    - bifunctors
+    - containers
+    - ghc-prim
+    - integer-gmp
+    - mwc-random
+    - primitive
+    - unordered-containers
+    - vector
 
 executables:
-  gauss-exe:
-    main: Main.hs
+  polly:
+    main: Polly.hs
     source-dirs: app
-    ghc-options:
-    dependencies:
-    - gauss
+    dependencies: 
+      - gauss
+      - universum
+
+#   gauss-exe:
+#     main: Main.hs
+#     source-dirs: app
+#     ghc-options:
+#     dependencies:
+#     - gauss
 
 tests:
   gauss-test:
     main: Spec.hs
     source-dirs: test
     dependencies:
-    - gauss
-    - smallcheck
-    - tasty
-    - tasty-hunit
-    - tasty-smallcheck
+      - gauss
+      - smallcheck
+      - tasty
+      - tasty-hunit
+      - tasty-smallcheck
 
 benchmarks:
   gauss-bench:

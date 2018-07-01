@@ -7,22 +7,12 @@ import           Test.Tasty.SmallCheck
 import           Universum             hiding (reduce)
 import qualified Universum.Unsafe      as Unsafe
 
-
 main :: IO ()
 main = defaultMain tests
 
-tests, units, props :: TestTree
+tests, units :: TestTree
+tests = testGroup "Tests" [units]
 
-tests = testGroup "Tests" [units, props]
-
-
-props = testGroup "Property tests"
-  [ testProperty "left unit elimination" $
-      \n ->
-        let n' = Constant n
-            unit = Unsafe.fromJust $ leftUnit =<< structureByOp Addition
-         in (reduce $ Application Addition [unit, n']) == n'
-  ]
 units =
   testGroup
     "Unit tests"
@@ -36,3 +26,11 @@ units =
     , testCase "distribution" $ reduce bort @?= reduce bortR
     , testCase "polynomial normalization" $ reduce polly @?= pollyR
     ]
+-- props =
+--   testGroup
+--     "Property tests"
+--     [ testProperty "left unit elimination" $ \n ->
+--         let n' = Constant n
+--             unit = Unsafe.fromJust $ leftUnit =<< structureByOp Addition
+--          in (reduce $ unit + n') == n'
+--     ]
